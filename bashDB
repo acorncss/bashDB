@@ -1,0 +1,108 @@
+##########################
+# Name: bashBD
+# Version: 0.1
+# Info: https://github.com/acorncss/bashDB
+# Donate: https://www.paypal.com/donate?hosted_button_id=P8USAAG7U2T28
+##########################
+
+declare -rg btkRed='\e[1;37;41m\e[K'
+declare -rg btkGre='\e[1;37;42m\e[K'
+declare -rg btkYel='\e[1;37;43m\e[K'
+declare -rg btkBlu='\e[1;37;44m\e[K'
+declare -rg btkRes='\e[0m'
+declare -rg btkRev='\e[1;7m\e[K'
+
+BTKcontinue(){
+  read -n 1 -p "Abort (any key) or Continue? (y) " reply
+  [[ $reply != 'y' ]] && { echo -e "\nEXIT as per your request"; exit 1;  } || echo -e "\nContinuing..."
+}
+BTKpause(){
+  read -n 1 -p "Check above lines. Press any key to Clear & Continue "
+  clear
+  echo "Continuing..."
+}
+BTKerror(){
+  echo -e "${btkRed} ERROR${btkRes}\n${btkRev} ${1}${btkRes}\n${btkRed} ${btkRes}\n"
+  BTKcontinue
+}
+BTKwarn(){
+  echo -e "${btkYel} WARNING${btkRes}\n${btkRev} ${1}${btkRes}\n${btkYel} ${btkRes}\n"
+}
+BTKsuccess(){
+  echo -e "${btkGre} SUCCESS${btkRes}\n${btkRev} ${1}${btkRes}\n${btkGre} ${btkRes}\n"
+}
+BTKinfo(){
+  echo -e "${btkBlu} INFORMATION${btkRes}\n${btkRev} ${1}${btkRes}\n${btkBlu} ${btkRes}\n"
+}
+
+declare -gr bdbLocation='/root/scripts/bashDB/'
+
+BDBcreate(){
+  set -u
+  local file="$bdbLocation$1"
+  [[ ! -f "$file" ]] && { mkdir -p "$(dirname "$file")"; touch "$file"; }
+  [[ -f "$file" ]] && BTKsuccess "DB File $file created or exists." || BTKerror "DB File $file FAILED to be created."
+}
+BDBconnect(){
+  set -u
+  local file="$bdbLocation$1"
+  [[ -f "$file" ]] && echo "$file" || BTKerror "DB File $file does not exist."
+}
+BDBinsert(){
+  local file=$( BDBconnect "$1" )
+  if grep -q "$2" "$file"; then
+  	BTKerror "The file ${file} already contains ${2}, use update rather than insert."
+  else
+  	case $4 in
+    	r) local entry="declare -rg ${2}=\"${3}\"" ;;
+    	A | a | i | rA | Ar | ra | ar | ir | ri) local entry="declare -g${4} ${2}=${3} " ;;
+    	*) local entry="${2}=\"${3}\"" ;;
+  	esac
+  	echo "$entry" >> "$file"
+  	grep -q "$2" "$file" && BTKsuccess "Entry $entry correctly inserted into ${file}." || BTKerror "Entry $entry FAILED to insert into ${file}."
+  	fi
+}
+BDBdelete(){
+  set -u
+  local file=$( BDBconnect "$1" )
+  sed -i /${2}=/d "$file"
+  grep -q "$2" "$file" && BTKerror "Entry for $2 FAILED to erase." || BTKsuccess "Entry for $2 correctly erased."
+}
+BDBupdate(){
+  BDBdelete "$1" "$2"
+  BDBinsert "$1" "$2" "$3" "$4"
+}
+BDBdrop(){
+  set -u
+  local file=$( BDBconnect "$1" )
+  rm -rf "$file"
+  [[ ! -f "$file" ]] && BTKsuccess "DB File $file correctly erased" || BTKwarn "DB File $file FAILED to erase."
+}
+BDBselectAll(){
+  set -u
+  local file=$( BDBconnect "$1" )
+  source "$file"
+}
+BDBselectRow(){
+  set -u
+  local file=$( BDBconnect "$1" )
+  eval $( grep "$2" "$file" )
+}
+BDBclean(){
+  set -u
+  local file=$( BDBconnect "$1" )
+  sed '/^$/d' $file
+  grep -c "^$" "$file" && BTKwarn "Empty lines FAILED to be removed" || BTKsuccess "All empty lines removed from $file"
+}
+BDBgetVarArray(){
+  set -u
+  local file=$( BDBconnect "$1" )
+  declare -ga bdbVarArray=( $( grep -o ${2}[a-zA-Z0-9]* $file ) )
+}
+BDBunset(){
+  set -u
+  BDBgetVarArray "$1" "$2"
+  for i in ${bdbVarArray[@]}; do unset $i; done
+  unset i
+  unset bdbVarArray
+}
