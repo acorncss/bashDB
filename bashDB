@@ -13,11 +13,13 @@ declare -rg btkRes='\e[0m'
 declare -rg btkRev='\e[1;7m\e[K'
 
 BTKcontinue(){
-  read -n 1 -p "Abort (any key) or Continue? (y) " reply
-  [[ $reply != 'y' ]] && { echo -e "\nEXIT as per your request"; exit 1;  } || echo -e "\nContinuing..."
+  echo -e "${btlYel} Abort (any key) or Continue? (y)#=${btkRes}\n"
+  read -n 1 -s reply
+  [[ $reply != 'y' ]] && { echo -e "EXIT as per your request"; exit 1;  } || echo -e "Continuing..."
 }
 BTKpause(){
-  read -n 1 -p "Check above lines. Press any key to Clear & Continue "
+  echo -e "${btkBlu} Check above lines. Press any key to Clear & Continue.${btkRes}"
+  read -n 1 -s
   clear
   echo "Continuing..."
 }
